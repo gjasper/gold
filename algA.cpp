@@ -2,6 +2,9 @@
 #include <vector>
 #include <regex>
 #include <algorithm>
+#include <string>
+#include <sstream>
+#include <iomanip>
 
 const int CLAUSE_SIZE = 3;
 const std::string UNSAT_VARS = "123,234,341,412,123,234,341,412";
@@ -85,19 +88,22 @@ std::vector<Cell> buildCells(unsigned int varsQtt, std::vector<Clause> clauses){
             cells.insert(cells.begin(), cell);
         }
     }
-    for(int i = 0; i < (2 * varsQtt + 2); i++){
+    for(int i = 0; i < (2 * varsQtt); i++){
         Cell cell;
-        if(i >= 2){
-           cell.next = i;
-           cell.prev = i;
-        }
+        cell.next = (2 * varsQtt) - i + 1;
+        cell.prev = (2 * varsQtt) - i + 1;
         cells.insert(cells.begin(), cell);
     }
+    cells.insert(cells.begin(), Cell());
+    cells.insert(cells.begin(), Cell());
     for(int i = (2 * varsQtt + 2); i < cells.size(); i++){
-        for(int j = 2; j < (2 * varsQtt + 2); j++){
-            //inserts into doubly linked
-        }    
-    }    
+        int header = cells[i].getLiteral();
+        cells[i].next = header;
+        cells[i].prev = cells[header].prev;
+        cells[cells[i].prev].next = i;
+        cells[header].prev = i;
+        cells[header].clause += 1;
+    }
     return cells;
 }
 
@@ -120,6 +126,29 @@ class SatModel {
         bool isSat() {
             return true;
         }
+        void print(){    
+            auto toString = [](int i){
+                std::ostringstream str;
+                str << " " << std::setw(2) << std::setfill(' ') << i;
+                return str.str();
+            };
+
+            std::string l;
+            std::string f;
+            std::string b;
+            std::string c;
+            for(int i = 0; i < cells.size(); i++){
+                l.append(toString(cells[i].getLiteral()));
+                f.append(toString(cells[i].getPrev()));
+                b.append(toString(cells[i].getNext()));
+                c.append(toString(cells[i].getClause()));
+            }
+            std::cout << "l: " << l << std::endl;
+            std::cout << "f: " << f << std::endl;
+            std::cout << "b: " << b << std::endl;
+            std::cout << "c: " << c << std::endl;
+        }
+
 };
 
 int main() {
@@ -132,6 +161,8 @@ int main() {
     };
 
     SatModel satModel(4, SAT_VARS, SAT_SIGS);
+    satModel.print();
+
     SatModel unsatModel(4, UNSAT_VARS, UNSAT_SIGS);
 
     assertThat("parsing: book's equation 7 equation should have 7 clauses", satModel.getClauses().size() == 7);
