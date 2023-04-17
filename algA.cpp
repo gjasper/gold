@@ -36,18 +36,6 @@ class Cell {
         unsigned int next;
         unsigned int prev;
         unsigned int clause;
-        unsigned int getLiteral(){
-            return literal;
-        }
-        unsigned int getNext(){
-            return next;
-        }
-        unsigned int getPrev(){
-            return prev;
-        }
-        unsigned int getClause(){
-            return clause;
-        }
 
 };
 
@@ -82,7 +70,7 @@ std::vector<Cell> buildCells(unsigned int varsQtt, std::vector<Clause> clauses){
             clauseCells.insert(clauseCells.begin(), cell);
         }
         sort(clauseCells.begin(), clauseCells.end(), [](Cell a, Cell b){
-            return a.getLiteral() < b.getLiteral();
+            return a.literal < b.literal;
         });
         for(Cell cell : clauseCells){
             cells.insert(cells.begin(), cell);
@@ -97,7 +85,7 @@ std::vector<Cell> buildCells(unsigned int varsQtt, std::vector<Clause> clauses){
     cells.insert(cells.begin(), Cell());
     cells.insert(cells.begin(), Cell());
     for(int i = (2 * varsQtt + 2); i < cells.size(); i++){
-        int header = cells[i].getLiteral();
+        int header = cells[i].literal;
         cells[i].next = header;
         cells[i].prev = cells[header].prev;
         cells[cells[i].prev].next = i;
@@ -124,7 +112,44 @@ class SatModel {
             return cells;
         }
         bool isSat() {
-            return true;
+            //A1
+            int a = clauses.size();
+            int d = 1;
+            std::vector<int> m;
+            for(int i = 0; i < clauses.size(); i++)
+                m.insert(m.begin(), 0);
+            //A2
+            int l = 2 * d;
+            if (cells[l].clause <= cells[l + 1].clause) {
+                l++;
+            }
+            m[d] = (l & 1) + 4 * (cells[l ^ 1].clause == 0);
+            if(cells[l].clause == a)
+                return true;
+            //A3
+            print();
+            int next = cells[l].next;
+            cells[l].next = l;
+            cells[l].prev = l;
+            cells[l].clause = 0;
+            while(next != l){
+                int clause = cells[next].clause;
+                bool empty = true;
+                //todo: replace 31 by 2n + 2 + 3m
+                for(int j = (31 - 3 * clause); j < (31 + 3 - 3 * clause); j++){
+                    if(cells[cells[j].literal].clause != 0){
+                       empty = false; 
+                    }
+                }
+                print();
+                next = cells[next].next;
+            }
+            return false;
+            //A4
+            //A5
+            //A6
+            //A7
+            //A8
         }
         void print(){    
             auto toString = [](int i){
@@ -132,17 +157,21 @@ class SatModel {
                 str << " " << std::setw(2) << std::setfill(' ') << i;
                 return str.str();
             };
-
+            std::string j;
             std::string l;
             std::string f;
             std::string b;
             std::string c;
             for(int i = 0; i < cells.size(); i++){
-                l.append(toString(cells[i].getLiteral()));
-                f.append(toString(cells[i].getPrev()));
-                b.append(toString(cells[i].getNext()));
-                c.append(toString(cells[i].getClause()));
+                j.append(toString(i));
+                l.append(toString(cells[i].literal));
+                f.append(toString(cells[i].prev));
+                b.append(toString(cells[i].next));
+                c.append(toString(cells[i].clause));
             }
+            std::cout << "\n";
+            std::cout << "i: " << j << std::endl;
+            std::cout << "\n";
             std::cout << "l: " << l << std::endl;
             std::cout << "f: " << f << std::endl;
             std::cout << "b: " << b << std::endl;
@@ -161,7 +190,6 @@ int main() {
     };
 
     SatModel satModel(4, SAT_VARS, SAT_SIGS);
-    satModel.print();
 
     SatModel unsatModel(4, UNSAT_VARS, UNSAT_SIGS);
 
@@ -174,20 +202,20 @@ int main() {
     assertThat("parsing: clause 6 should have false at 2", !satModel.getClauses()[6].getVars()[2].second);
 
     assertThat("modeling: book's equation 7 should have 31 cells", satModel.getCells().size() == 31);
-    assertThat("modeling: cell 9 should have nothing as literal", satModel.getCells()[9].getLiteral() == 0);
-    assertThat("modeling: cell 9 should have 25 as next", satModel.getCells()[9].getNext() == 25);
-    assertThat("modeling: cell 9 should have 10 as previous", satModel.getCells()[9].getPrev() == 10);
-    assertThat("modeling: cell 9 should have 2 as clause", satModel.getCells()[9].getClause() == 2);
+    assertThat("modeling: cell 9 should have nothing as literal", satModel.getCells()[9].literal == 0);
+    assertThat("modeling: cell 9 should have 25 as next", satModel.getCells()[9].prev == 25);
+    assertThat("modeling: cell 9 should have 10 as previous", satModel.getCells()[9].next == 10);
+    assertThat("modeling: cell 9 should have 2 as clause", satModel.getCells()[9].clause == 2);
     
-    assertThat("modeling: cell 10 equation should have 9 as literal", satModel.getCells()[10].getLiteral() == 9);
-    assertThat("modeling: cell 10 equation should have 9 as next", satModel.getCells()[10].getNext() == 9);
-    assertThat("modeling: cell 10 equation should have 25 as previous", satModel.getCells()[10].getPrev() == 25);
-    assertThat("modeling: cell 10 equation should have 7 as clause", satModel.getCells()[10].getClause() == 7);
+    assertThat("modeling: cell 10 equation should have 9 as literal", satModel.getCells()[10].literal == 9);
+    assertThat("modeling: cell 10 equation should have 9 as next", satModel.getCells()[10].prev == 9);
+    assertThat("modeling: cell 10 equation should have 25 as previous", satModel.getCells()[10].next == 25);
+    assertThat("modeling: cell 10 equation should have 7 as clause", satModel.getCells()[10].clause == 7);
     
-    assertThat("modeling: cell 30 equation should have 2 as literal", satModel.getCells()[30].getLiteral() == 2);
-    assertThat("modeling: cell 30 equation should have 24 as next", satModel.getCells()[30].getNext() == 24);
-    assertThat("modeling: cell 30 equation should have 2 as previous", satModel.getCells()[30].getPrev() == 2);
-    assertThat("modeling: cell 30 equation should have 1 as clause", satModel.getCells()[30].getClause() == 1);
+    assertThat("modeling: cell 30 equation should have 2 as literal", satModel.getCells()[30].literal == 2);
+    assertThat("modeling: cell 30 equation should have 24 as next", satModel.getCells()[30].prev == 24);
+    assertThat("modeling: cell 30 equation should have 2 as previous", satModel.getCells()[30].next == 2);
+    assertThat("modeling: cell 30 equation should have 1 as clause", satModel.getCells()[30].clause == 1);
 
     assertThat("solving: book's equation 7 should be sat", satModel.isSat());
     assertThat("solving: book's equation 6 should be unsat", !unsatModel.isSat());
