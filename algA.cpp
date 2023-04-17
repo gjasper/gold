@@ -32,11 +32,10 @@ class Cell {
     private:
     public:
         Cell(): literal(0), next(0), prev(0), clause(0){}
-        unsigned int literal;
         unsigned int next;
         unsigned int prev;
+        unsigned int literal;
         unsigned int clause;
-
 };
 
 std::vector<Clause> parseClauses(std::string vars, std::string sigs){
@@ -100,6 +99,134 @@ class SatModel {
     private:
         std::vector<Clause> clauses;
         std::vector<Cell> cells;
+
+        class AlgoA {
+            
+            class UNSAT : public std::exception {
+
+            };
+
+            class SAT : public std::exception {
+
+            };
+
+            private:
+                std::vector<bool> activeClauses;
+                std::vector<Cell> cells;
+                std::stack<int> deactivated;
+                int a;
+                int d;
+                int l;
+                std::vector<int> m;
+
+                int snext(int i){
+                    if(i < 10 || activeClauses[cells[i].clause]){
+                        return cells[i].next;
+                    } else {
+                        snext(cells[i].next);
+                    }
+                }
+
+                int sprev(int i){
+                    if(i < 10 || activeClauses[cells[i].clause]){
+                        return cells[i].prev;
+                    } else {
+                        sprev(cells[i].prev);
+                    }                
+                }
+
+                void a1(){
+                    //A1 - initialize
+                    a = activeClauses.size();
+                    d = 1;
+                    for(int i = 0; i < a; i++){
+                        m[i] = 0;
+                        activeClauses[i] = true;
+                    }
+                }
+                void a2(){
+                    //A2 - choose
+                    int l = 2 * d;
+                    if (cells[l].clause <= cells[l + 1].clause) {
+                        l++;
+                    }
+                    if(cells[l].clause == a){
+                        throw new SAT;
+                    }
+                    m[d] = (l & 1) + 4 * (cells[l ^ 1].clause == 0);
+                    a3();
+                }
+                void a3(){
+                    //A3 - remove not l
+                    int nl = l ^ 1;
+                    int next = snext(nl);
+                    bool allowed = true;
+                    while(next != nl){
+                        int clause = cells[next].clause;
+                        int active = 0;
+                        //todo: replace 31 by 2n + 2 + 3m
+                        for(int j = (31 - 3 * clause); j < (31 + 3 - 3 * clause); j++){
+                            if(cells[cells[j].literal].clause != 0){
+                                active++; 
+                            }
+                        }
+                        if(active == 1){
+                            allowed = false;
+                            break;
+                        }
+                        next = snext(next);
+                    }
+                    if(allowed) {
+                        cells[nl].clause = 0;
+                        a4();
+                    } else {
+                        a5();
+                    }
+                }
+                void a4(){
+                    //A4 - deactivate l's clauses
+                    a2();
+                }
+                void a5(){
+                    //A5 - try again
+                    if(m[d] < 2){
+                        m[d] = 3 - m[d];
+                        l = 2 * d + (m[d] & 1);
+                        a3();
+                    }
+                    a6();
+                }
+                void a6(){
+                    //A6 - backtrack
+                    if(d == 1){
+                        throw new SAT;
+                    } else {
+                        d--;
+                        l = 2 * d + (m[d] & 1);
+                        a7();
+                    }
+                }
+                void a7(){
+                    //A7 - reactivate l's clauses
+                }
+                void a8(){
+                    //A8 - unremove not l
+                }
+
+            public:
+                AlgoA(std::vector<Clause> cs, std::vector<Cell> csls) :
+                    activeClauses(cs.size()), cells(csls) {}
+                bool run(){
+                    try {
+                        a1();
+                    } catch(SAT) {
+                        return true;
+                    } catch(UNSAT) {
+                        return false;
+                    }                    
+                }
+        };
+
     public:
         SatModel(unsigned int varsQtt, std::string vs, std::string ss): 
             clauses(parseClauses(vs, ss))
@@ -112,44 +239,12 @@ class SatModel {
             return cells;
         }
         bool isSat() {
-            //A1
-            int a = clauses.size();
-            int d = 1;
-            std::vector<int> m;
-            for(int i = 0; i < clauses.size(); i++)
-                m.insert(m.begin(), 0);
-            //A2
-            int l = 2 * d;
-            if (cells[l].clause <= cells[l + 1].clause) {
-                l++;
-            }
-            m[d] = (l & 1) + 4 * (cells[l ^ 1].clause == 0);
-            if(cells[l].clause == a)
-                return true;
-            //A3
-            print();
-            int next = cells[l].next;
-            cells[l].next = l;
-            cells[l].prev = l;
-            cells[l].clause = 0;
-            while(next != l){
-                int clause = cells[next].clause;
-                bool empty = true;
-                //todo: replace 31 by 2n + 2 + 3m
-                for(int j = (31 - 3 * clause); j < (31 + 3 - 3 * clause); j++){
-                    if(cells[cells[j].literal].clause != 0){
-                       empty = false; 
-                    }
-                }
-                print();
-                next = cells[next].next;
-            }
-            return false;
-            //A4
+            //A4 - deactivate l
             //A5
             //A6
             //A7
             //A8
+            return false;
         }
         void print(){    
             auto toString = [](int i){
