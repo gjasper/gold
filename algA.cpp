@@ -101,7 +101,7 @@ class SatModel {
         std::vector<Cell> cells;
 
         class AlgoA {
-            
+
             class UNSAT : public std::exception {
 
             };
@@ -113,26 +113,33 @@ class SatModel {
             private:
                 std::vector<bool> activeClauses;
                 std::vector<Cell> cells;
-                std::stack<int> deactivated;
                 int a;
                 int d;
                 int l;
                 std::vector<int> m;
 
+                bool isClauseActive(int i){
+                    return activeClauses[cells[i].clause - 1];
+                };
+
+                bool isLiteralActive(int i){
+                    return cells[cells[i].literal].clause > 0;
+                };
+
                 int snext(int i){
-                    if(i < 10 || activeClauses[cells[i].clause]){
+                    if(cells[i].next < 10 || (isClauseActive(cells[i].next) && isLiteralActive(i))){
                         return cells[i].next;
                     } else {
-                        snext(cells[i].next);
+                        return snext(cells[i].next);
                     }
                 }
 
                 int sprev(int i){
-                    if(i < 10 || activeClauses[cells[i].clause]){
+                    if(cells[i].prev < 10 || (isClauseActive(cells[i].prev) && isLiteralActive(i))){
                         return cells[i].prev;
                     } else {
-                        sprev(cells[i].prev);
-                    }                
+                        return sprev(cells[i].prev);
+                    }
                 }
 
                 void a1(){
@@ -140,13 +147,14 @@ class SatModel {
                     a = activeClauses.size();
                     d = 1;
                     for(int i = 0; i < a; i++){
-                        m[i] = 0;
+                        m.insert(m.end(), 0);
                         activeClauses[i] = true;
                     }
+                    a2();
                 }
                 void a2(){
                     //A2 - choose
-                    int l = 2 * d;
+                    l = 2 * d;
                     if (cells[l].clause <= cells[l + 1].clause) {
                         l++;
                     }
@@ -161,13 +169,13 @@ class SatModel {
                     int nl = l ^ 1;
                     int next = snext(nl);
                     bool allowed = true;
-                    while(next != nl){
+                    while(next > 9 && next != nl){
                         int clause = cells[next].clause;
                         int active = 0;
                         //todo: replace 31 by 2n + 2 + 3m
                         for(int j = (31 - 3 * clause); j < (31 + 3 - 3 * clause); j++){
                             if(cells[cells[j].literal].clause != 0){
-                                active++; 
+                                active++;
                             }
                         }
                         if(active == 1){
@@ -185,6 +193,18 @@ class SatModel {
                 }
                 void a4(){
                     //A4 - deactivate l's clauses
+                    int next = snext(l);
+                    while(next != l){
+                        activeClauses[cells[next].clause - 1] = false;
+                        int clause = cells[next].clause;
+                        for(int j = (31 - 3 * clause); j < (31 + 3 - 3 * clause); j++){
+                            if(cells[cells[j].literal].clause > 0)
+                                cells[cells[j].literal].clause--;
+                        }
+                        next = snext(next);
+                    }
+                    a = a - cells[l].clause;
+                    d++;
                     a2();
                 }
                 void a5(){
@@ -199,7 +219,7 @@ class SatModel {
                 void a6(){
                     //A6 - backtrack
                     if(d == 1){
-                        throw new SAT;
+                        throw new UNSAT;
                     } else {
                         d--;
                         l = 2 * d + (m[d] & 1);
@@ -208,9 +228,22 @@ class SatModel {
                 }
                 void a7(){
                     //A7 - reactivate l's clauses
+                    int next = snext(l);
+                    while(next != l){
+                        activeClauses[cells[next].clause - 1] = true;
+                        int clause = cells[next].clause;
+                        for(int j = (31 - 3 * clause); j < (31 + 3 - 3 * clause); j++){
+                            cells[cells[j].literal].clause++;
+                        }
+                        next = snext(next);
+                    }
+                    a8();
                 }
                 void a8(){
                     //A8 - unremove not l
+                    int nl = l ^ 1;
+                    cells[nl].clause = 3;
+                    a5();
                 }
 
             public:
@@ -223,12 +256,13 @@ class SatModel {
                         return true;
                     } catch(UNSAT) {
                         return false;
-                    }                    
+                    }
+                    return false;
                 }
         };
 
     public:
-        SatModel(unsigned int varsQtt, std::string vs, std::string ss): 
+        SatModel(unsigned int varsQtt, std::string vs, std::string ss):
             clauses(parseClauses(vs, ss))
           , cells(buildCells(varsQtt, clauses)) {
         }
@@ -239,14 +273,10 @@ class SatModel {
             return cells;
         }
         bool isSat() {
-            //A4 - deactivate l
-            //A5
-            //A6
-            //A7
-            //A8
-            return false;
+            AlgoA a(clauses, cells);
+            return a.run();
         }
-        void print(){    
+        void print(){
             auto toString = [](int i){
                 std::ostringstream str;
                 str << " " << std::setw(2) << std::setfill(' ') << i;
@@ -301,12 +331,12 @@ int main() {
     assertThat("modeling: cell 9 should have 25 as next", satModel.getCells()[9].prev == 25);
     assertThat("modeling: cell 9 should have 10 as previous", satModel.getCells()[9].next == 10);
     assertThat("modeling: cell 9 should have 2 as clause", satModel.getCells()[9].clause == 2);
-    
+
     assertThat("modeling: cell 10 equation should have 9 as literal", satModel.getCells()[10].literal == 9);
     assertThat("modeling: cell 10 equation should have 9 as next", satModel.getCells()[10].prev == 9);
     assertThat("modeling: cell 10 equation should have 25 as previous", satModel.getCells()[10].next == 25);
     assertThat("modeling: cell 10 equation should have 7 as clause", satModel.getCells()[10].clause == 7);
-    
+
     assertThat("modeling: cell 30 equation should have 2 as literal", satModel.getCells()[30].literal == 2);
     assertThat("modeling: cell 30 equation should have 24 as next", satModel.getCells()[30].prev == 24);
     assertThat("modeling: cell 30 equation should have 2 as previous", satModel.getCells()[30].next == 2);
