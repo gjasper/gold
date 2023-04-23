@@ -1,3 +1,10 @@
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <regex>
+#include <algorithm>
+#include <sstream>
+#include <assert.h>
 #include "sat.hpp"
 
 std::vector<Clause> parseClauses(std::string vars, std::string sigs){
@@ -58,13 +65,12 @@ std::vector<Cell> buildCells(unsigned int varsQtt, std::vector<Clause> clauses){
 
 void AlgoA::a1(){
     //A1 - initialize
-    a = activeClauses.size();
     d = 1;
     for(int i = 0; i < a; i++){
         m.insert(m.end(), 0);
-        activeClauses[i] = true;
+        activeClauses.push_back(true);
     }
-    for(int i = 0; i < VARS_COUNT * 2 + 2; i++){
+    for(int i = 0; i < varQtt * 2 + 2; i++){
         activeLiterals[i] = true;
     }
     a2();
@@ -88,7 +94,7 @@ void AlgoA::a3(){
     int nl = l ^ 1;
     int next = snext(nl);
     bool allowed = true;
-    while(next > 9 && next != nl){
+    while(next >= varQtt * 2 + 2 && next != nl){
         int active = 0;
         int clause = cells[next].clause;
         int start = cells.size() - CLAUSE_SIZE * clause;
@@ -117,7 +123,7 @@ void AlgoA::a4(){
     //A4 - deactivate l's clauses
     int pl = l;
     int next = snext(pl);
-    while(next != pl){
+    while(next >= varQtt * 2 + 2 && next != pl){
         activeClauses[cells[next].clause - 1] = false;
         a--;
         int clause = cells[next].clause;
@@ -184,17 +190,62 @@ void AlgoA::a8(){
     a5();
 }
 
-SatModel::SatModel(unsigned int varsQtt, std::string vs, std::string ss):
-    clauses(parseClauses(vs, ss))
-    , cells(buildCells(varsQtt, clauses)) {
+SatModel parseString(unsigned int varsQtt, std::string vs, std::string ss){
+    std::vector<Clause> clauses = parseClauses(vs, ss);
+    std::vector<Cell> cells = buildCells(varsQtt, clauses);
+    return SatModel(clauses, cells, varsQtt);
 }
 
-void SatModel::print(){
+std::vector<int> getNumbersFromString(const std::string& str)
+{
+    std::vector<int> result;
+    std::stringstream ss(str);
+    int num;
+    while (ss >> num && num != 0)
+    {
+        result.push_back(num);
+        ss.ignore();
+    }
+    return result;
+}
+
+SatModel parseDimacs(std::string filePath) {
+    std::ifstream myfile;
+    std::string line;
+    myfile.open(filePath);
+    std::vector<Clause> clauses;
+    int varCount;
+    if (myfile.is_open()) {
+        while (std::getline(myfile, line) && line.at(0) != 'p'){}
+        std::stringstream ss(line);
+        ss.ignore(6);
+        ss >> varCount;
+        while (std::getline(myfile, line)){
+            Clause c(getNumbersFromString(line));
+            clauses.insert(clauses.end(), c);
+        }
+        myfile.close();
+    } else std::cout << "Unable to open file";
+    return SatModel(clauses, buildCells(varCount, clauses), varCount);
+}
+
+void SatModel::print() const {
     auto toString = [](int i){
         std::ostringstream str;
         str << " " << std::setw(2) << std::setfill(' ') << i;
         return str.str();
     };
+
+    std::stringstream ss;
+    for(int i = 0; i < getClauses().size(); i++){
+        std::vector<std::pair<unsigned int, bool>> vars = getClauses().at(i).getVars();
+        ss << (vars.at(0).second ? "  " : " -") << vars.at(0).first;
+        ss << (vars.at(1).second ? "  " : " -") << vars.at(1).first;
+        ss << (vars.at(2).second ? "  " : " -") << vars.at(2).first;
+        ss << " ";
+    }
+    std::cout << ss.str();
+
     std::string j;
     std::string l;
     std::string f;

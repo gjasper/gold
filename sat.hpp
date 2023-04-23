@@ -1,23 +1,23 @@
-#include <iostream>
 #include <vector>
-#include <regex>
-#include <algorithm>
 #include <string>
-#include <sstream>
-#include <iomanip>
+#include <cstdlib>
 
 const int CLAUSE_SIZE = 3;
-const int VARS_COUNT = 4;
 
 class Clause {
 
     private:
         std::vector<std::pair<unsigned int, bool>> vars;
     public:
-        Clause(std::string vs, std::string ss) {
-            vars.insert(vars.begin() + 0, std::pair((int) vs.at(0) - 48, (int) ss.at(0) - 48));
-            vars.insert(vars.begin() + 1, std::pair((int) vs.at(1) - 48, (int) ss.at(1) - 48));
-            vars.insert(vars.begin() + 2, std::pair((int) vs.at(2) - 48, (int) ss.at(2) - 48));
+        Clause(std::vector<int> vs){
+            vars.insert(vars.end(), std::pair(abs(vs.at(0)), vs.at(0) > 0));
+            vars.insert(vars.end(), std::pair(abs(vs.at(1)), vs.at(1) > 0));
+            vars.insert(vars.end(), std::pair(abs(vs.at(2)), vs.at(2) > 0));
+        }
+        Clause(std::string vs, std::string ss){
+            vars.insert(vars.end(), std::pair((int) vs.at(0) - 48, (int) ss.at(0) - 48));
+            vars.insert(vars.end(), std::pair((int) vs.at(1) - 48, (int) ss.at(1) - 48));
+            vars.insert(vars.end(), std::pair((int) vs.at(2) - 48, (int) ss.at(2) - 48));
         }
         std::vector<std::pair<unsigned int, bool>> getVars(){
             return vars;
@@ -51,28 +51,29 @@ class AlgoA {
         int d;
         int l;
         std::vector<int> m;
+        int varQtt;
 
-        bool isClauseActive(int i){
-            return activeClauses[cells[i].clause - 1];
+        bool isClauseActive(int i) const {
+            return activeClauses[cells.at(i).clause - 1];
         };
 
-        bool isLiteralActive(int i){
-            return activeLiterals[cells[i].literal];
+        bool isLiteralActive(int i) const {
+            return activeLiterals.at(cells.at(i).literal);
         };
 
-        int snext(int i){
-            if(cells[i].next < 10 || (isClauseActive(cells[i].next) && (i < 10 || isLiteralActive(i)))){
-                return cells[i].next;
+        int snext(int i) const {
+            if(cells[i].next < (varQtt * 2 + 2) || (isClauseActive(cells.at(i).next) && (i < (varQtt * 2 + 2) || isLiteralActive(i)))){
+                return cells.at(i).next;
             } else {
-                return snext(cells[i].next);
+                return snext(cells.at(i).next);
             }
         }
 
-        int sprev(int i){
-            if(cells[i].prev < 10 || (isClauseActive(cells[i].prev) && (i < 10 || isLiteralActive(i)))){
-                return cells[i].prev;
+        int sprev(int i) const {
+            if(cells.at(i).prev < (varQtt * 2 + 2) || (isClauseActive(cells.at(i).prev) && (i < (varQtt * 2 + 2) || isLiteralActive(i)))){
+                return cells.at(i).prev;
             } else {
-                return sprev(cells[i].prev);
+                return sprev(cells.at(i).prev);
             }
         }
 
@@ -86,8 +87,8 @@ class AlgoA {
         void a8();
 
     public:
-        AlgoA(std::vector<Clause> cs, std::vector<Cell> csls) :
-            activeClauses(cs.size()), activeLiterals(VARS_COUNT * 2 + 2), cells(csls) {}
+        AlgoA(std::vector<Clause> cs, std::vector<Cell> csls, int qtt) :
+            a(cs.size()), activeLiterals(qtt * 2 + 2), cells(csls), varQtt(qtt) {}
         bool run(){
             try {
                 a1();
@@ -105,18 +106,26 @@ class SatModel {
     private:
         std::vector<Clause> clauses;
         std::vector<Cell> cells;
+        unsigned int varsQtt;
 
     public:
-        SatModel(unsigned int varsQtt, std::string vs, std::string ss);
-        std::vector<Clause> getClauses() {
+        SatModel(std::vector<Clause> cls, std::vector<Cell> cs, unsigned int qtt):
+            clauses(cls), cells(cs), varsQtt(qtt) {};
+        std::vector<Clause> getClauses() const {
             return clauses;
         }
-        std::vector<Cell> getCells() {
+        std::vector<Cell> getCells() const {
             return cells;
         }
-        bool isSat() {
-            AlgoA a(clauses, cells);
+        unsigned int getVarQtt() const {
+            return varsQtt;
+        }
+        bool isSat() const {
+            AlgoA a(clauses, cells, varsQtt);
             return a.run();
         }
-        void print();
+        void print() const;
 };
+
+SatModel parseString(unsigned int, std::string, std::string);
+SatModel parseDimacs(std::string);
