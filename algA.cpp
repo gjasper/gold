@@ -9,10 +9,10 @@
 const int CLAUSE_SIZE = 3;
 const int VARS_COUNT = 4;
 
-const std::string SAT_VARS = "123,234,341,412,123,234,341";
-const std::string SAT_SIGS = "110,110,111,101,001,001,000";
-const std::string UNSAT_VARS = "123,234,341,412,123,234,341,412";
-const std::string UNSAT_SIGS = "110,110,111,101,001,001,000,010";
+const std::string EQUATION_7_VARS = "123,234,341,412,123,234,341";
+const std::string EQUATION_7_SIGS = "110,110,111,101,001,001,000";
+const std::string EQUATION_6_VARS = "123,234,341,412,123,234,341,412";
+const std::string EQUATION_6_SIGS = "110,110,111,101,001,001,000,010";
 
 class Clause {
 
@@ -104,16 +104,17 @@ class SatModel {
 
         class AlgoA {
 
-            class UNSAT : public std::exception {
+            class UNSAT {
 
             };
 
-            class SAT : public std::exception {
+            class SAT {
 
             };
 
             private:
                 std::vector<bool> activeClauses;
+                std::vector<bool> activeLiterals;
                 std::vector<Cell> cells;
                 int a;
                 int d;
@@ -125,7 +126,7 @@ class SatModel {
                 };
 
                 bool isLiteralActive(int i){
-                    return cells[cells[i].literal].clause > 0;
+                    return activeLiterals[cells[i].literal];
                 };
 
                 int snext(int i){
@@ -152,6 +153,9 @@ class SatModel {
                         m.insert(m.end(), 0);
                         activeClauses[i] = true;
                     }
+                    for(int i = 0; i < VARS_COUNT * 2 + 2; i++){
+                        activeLiterals[i] = true;
+                    }
                     a2();
                 }
                 void a2(){
@@ -162,7 +166,7 @@ class SatModel {
                     }
                     m[d-1] = (l & 1) + 4 * (cells[l ^ 1].clause == 0);
                     if(cells[l].clause == a){
-                        throw new SAT;
+                        throw new SAT();
                     }
                     a3();
                 }
@@ -172,10 +176,12 @@ class SatModel {
                     int next = snext(nl);
                     bool allowed = true;
                     while(next > 9 && next != nl){
-                        int clause = cells[next].clause;
                         int active = 0;
-                        for(int j = (cells.size() - CLAUSE_SIZE * clause); j < (cells.size() + CLAUSE_SIZE - CLAUSE_SIZE * clause); j++){
-                            if(cells[cells[j].literal].clause != 0){
+                        int clause = cells[next].clause;
+                        int start = cells.size() - CLAUSE_SIZE * clause;
+                        int end = start + CLAUSE_SIZE;
+                        for(int j = start; j < end; j++){
+                            if(cells[cells[j].literal].clause > 0){
                                 active++;
                             }
                         }
@@ -186,6 +192,7 @@ class SatModel {
                         next = snext(next);
                     }
                     if(allowed) {
+                        activeLiterals[nl] = false;
                         cells[nl].clause = 0;
                         a4();
                     } else {
@@ -221,7 +228,7 @@ class SatModel {
                 void a6(){
                     //A6 - backtrack
                     if(d == 1){
-                        throw new UNSAT;
+                        throw new UNSAT();
                     } else {
                         d--;
                         l = 2 * d + (m[d-1] & 1);
@@ -235,8 +242,11 @@ class SatModel {
                         activeClauses[cells[next].clause - 1] = true;
                         a++;
                         int clause = cells[next].clause;
-                        for(int j = (cells.size() - 3 * clause); j < (cells.size() + CLAUSE_SIZE - CLAUSE_SIZE * clause); j++){
-                            cells[cells[j].literal].clause++;
+                        int start = cells.size() - CLAUSE_SIZE * clause;
+                        int end = start + CLAUSE_SIZE;
+                        for(int j = start; j < end; j++){
+                            if(activeLiterals[cells[j].literal])
+                                cells[cells[j].literal].clause++;
                         }
                         next = cells[next].next;
                     }
@@ -247,7 +257,10 @@ class SatModel {
                     int nl = l ^ 1;
                     int next = cells[nl].next;
                     while(next != nl){
-                        cells[cells[next].literal].clause++;
+                        if(activeClauses[cells[next].clause - 1]){
+                            activeLiterals[cells[next].literal] = true;
+                            cells[cells[next].literal].clause++;
+                        }
                         next = cells[next].next;
                     }
                     a5();
@@ -255,13 +268,13 @@ class SatModel {
 
             public:
                 AlgoA(std::vector<Clause> cs, std::vector<Cell> csls) :
-                    activeClauses(cs.size()), cells(csls) {}
+                    activeClauses(cs.size()), activeLiterals(VARS_COUNT * 2 + 2), cells(csls) {}
                 bool run(){
                     try {
                         a1();
-                    } catch(SAT) {
+                    } catch(SAT e) {
                         return true;
-                    } catch(UNSAT) {
+                    } catch(UNSAT e) {
                         return false;
                     }
                     return false;
@@ -322,35 +335,35 @@ int main() {
     };
 
 
-    SatModel satModel(VARS_COUNT, SAT_VARS, SAT_SIGS);
-    SatModel unsatModel(VARS_COUNT, UNSAT_VARS, UNSAT_SIGS);
+    SatModel equation6Model(VARS_COUNT, EQUATION_6_VARS, EQUATION_6_SIGS);
+    SatModel equation7Model(VARS_COUNT, EQUATION_7_VARS, EQUATION_7_SIGS);
 
-    unsatModel.print();
+    equation6Model.print();
 
-    assertThat("parsing: book's equation 7 equation should have 7 clauses", unsatModel.getClauses().size() == 7);
+    assertThat("parsing: book's equation 7 equation should have 7 clauses", equation7Model.getClauses().size() == 7);
 
-    assertThat("parsing: clause 0 should have 1 at 0", unsatModel.getClauses()[0].getVars()[0].first == 1);
-    assertThat("parsing: clause 0 should have true at 0", unsatModel.getClauses()[0].getVars()[0].second);
+    assertThat("parsing: clause 0 should have 1 at 0", equation7Model.getClauses()[0].getVars()[0].first == 1);
+    assertThat("parsing: clause 0 should have true at 0", equation7Model.getClauses()[0].getVars()[0].second);
 
-    assertThat("parsing: clause 6 should have 1 at 2", unsatModel.getClauses()[6].getVars()[2].first == 1);
-    assertThat("parsing: clause 6 should have false at 2", !unsatModel.getClauses()[6].getVars()[2].second);
+    assertThat("parsing: clause 6 should have 1 at 2", equation7Model.getClauses()[6].getVars()[2].first == 1);
+    assertThat("parsing: clause 6 should have false at 2", !equation7Model.getClauses()[6].getVars()[2].second);
 
-    assertThat("modeling: book's equation 7 should have 31 cells", unsatModel.getCells().size() == 31);
-    assertThat("modeling: cell 9 should have nothing as literal", unsatModel.getCells()[9].literal == 0);
-    assertThat("modeling: cell 9 should have 25 as next", unsatModel.getCells()[9].prev == 25);
-    assertThat("modeling: cell 9 should have 10 as previous", unsatModel.getCells()[9].next == 10);
-    assertThat("modeling: cell 9 should have 2 as clause", unsatModel.getCells()[9].clause == 2);
+    assertThat("modeling: book's equation 7 should have 31 cells", equation7Model.getCells().size() == 31);
+    assertThat("modeling: cell 9 should have nothing as literal", equation7Model.getCells()[9].literal == 0);
+    assertThat("modeling: cell 9 should have 25 as next", equation7Model.getCells()[9].prev == 25);
+    assertThat("modeling: cell 9 should have 10 as previous", equation7Model.getCells()[9].next == 10);
+    assertThat("modeling: cell 9 should have 2 as clause", equation7Model.getCells()[9].clause == 2);
 
-    assertThat("modeling: cell 10 equation should have 9 as literal", unsatModel.getCells()[10].literal == 9);
-    assertThat("modeling: cell 10 equation should have 9 as next", unsatModel.getCells()[10].prev == 9);
-    assertThat("modeling: cell 10 equation should have 25 as previous", unsatModel.getCells()[10].next == 25);
-    assertThat("modeling: cell 10 equation should have 7 as clause", unsatModel.getCells()[10].clause == 7);
+    assertThat("modeling: cell 10 equation should have 9 as literal", equation7Model.getCells()[10].literal == 9);
+    assertThat("modeling: cell 10 equation should have 9 as next", equation7Model.getCells()[10].prev == 9);
+    assertThat("modeling: cell 10 equation should have 25 as previous", equation7Model.getCells()[10].next == 25);
+    assertThat("modeling: cell 10 equation should have 7 as clause", equation7Model.getCells()[10].clause == 7);
 
-    assertThat("modeling: cell 30 equation should have 2 as literal", unsatModel.getCells()[30].literal == 2);
-    assertThat("modeling: cell 30 equation should have 24 as next", unsatModel.getCells()[30].prev == 24);
-    assertThat("modeling: cell 30 equation should have 2 as previous", unsatModel.getCells()[30].next == 2);
-    assertThat("modeling: cell 30 equation should have 1 as clause", unsatModel.getCells()[30].clause == 1);
+    assertThat("modeling: cell 30 equation should have 2 as literal", equation7Model.getCells()[30].literal == 2);
+    assertThat("modeling: cell 30 equation should have 24 as next", equation7Model.getCells()[30].prev == 24);
+    assertThat("modeling: cell 30 equation should have 2 as previous", equation7Model.getCells()[30].next == 2);
+    assertThat("modeling: cell 30 equation should have 1 as clause", equation7Model.getCells()[30].clause == 1);
 
-    // assertThat("solving: book's equation 6 should be sat", satModel.isSat());
-    assertThat("solving: book's equation 7 should be unsat", !unsatModel.isSat());
+    assertThat("solving: book's equation 7 should be sat", equation7Model.isSat());
+    assertThat("solving: book's equation 6 should be unsat", !equation6Model.isSat());
 }
