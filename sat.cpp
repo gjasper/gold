@@ -18,7 +18,7 @@ std::vector<Clause> parseClauses(std::string vars, std::string sigs){
     std::vector<std::string> sigList(std::sregex_token_iterator(sigs.begin(), sigs.end(), regexz, -1),
                                   std::sregex_token_iterator());
     std::vector<Clause> clauses;
-    for(int i = 0; i < varList.size(); i++) {
+    for(unsigned int i = 0; i < varList.size(); i++) {
         clauses.insert(clauses.begin() + i, Clause(varList.at(i), sigList.at(i)));
     }
     return clauses;
@@ -26,9 +26,9 @@ std::vector<Clause> parseClauses(std::string vars, std::string sigs){
 
 std::vector<Cell> buildCells(unsigned int varsQtt, std::vector<Clause> clauses){
     std::vector<Cell> cells;
-    for(int i = 0; i < clauses.size(); i++){
+    for(unsigned int i = 0; i < clauses.size(); i++){
         std::vector<Cell> clauseCells;
-        for(int j = 0; j < clauses[i].getVars().size(); j++){
+        for(unsigned int j = 0; j < clauses[i].getVars().size(); j++){
             Cell cell;
             cell.literal = clauses[i].getVars()[j].first << 1;
             if(!clauses[i].getVars()[j].second){
@@ -44,7 +44,7 @@ std::vector<Cell> buildCells(unsigned int varsQtt, std::vector<Clause> clauses){
             cells.insert(cells.begin(), cell);
         }
     }
-    for(int i = 0; i < (2 * varsQtt); i++){
+    for(unsigned int i = 0; i < (2 * varsQtt); i++){
         Cell cell;
         cell.next = (2 * varsQtt) - i + 1;
         cell.prev = (2 * varsQtt) - i + 1;
@@ -52,7 +52,7 @@ std::vector<Cell> buildCells(unsigned int varsQtt, std::vector<Clause> clauses){
     }
     cells.insert(cells.begin(), Cell());
     cells.insert(cells.begin(), Cell());
-    for(int i = (2 * varsQtt + 2); i < cells.size(); i++){
+    for(unsigned int i = (2 * varsQtt + 2); i < cells.size(); i++){
         int header = cells[i].literal;
         cells[i].next = header;
         cells[i].prev = cells[header].prev;
@@ -63,38 +63,40 @@ std::vector<Cell> buildCells(unsigned int varsQtt, std::vector<Clause> clauses){
     return cells;
 }
 
-void AlgoA::a1(){
+AlgoA::NextStep AlgoA::a1(){
     //A1 - initialize
+    a = activeClauses.size();
     d = 1;
-    for(int i = 0; i < a; i++){
+    for(unsigned int i = 0; i < a; i++){
         m.insert(m.end(), 0);
-        activeClauses.push_back(true);
+        activeClauses[i] = true;
     }
-    for(int i = 0; i < varQtt * 2 + 2; i++){
+    for(unsigned int i = 0; i < varQtt * 2 + 2; i++){
         activeLiterals[i] = true;
     }
-    a2();
+    return A2;
 }
 
-void AlgoA::a2(){
+AlgoA::NextStep AlgoA::a2(){
     //A2 - choose
     l = 2 * d;
     if (cells[l].clause <= cells[l + 1].clause) {
         l++;
     }
     m[d-1] = (l & 1) + 4 * (cells[l ^ 1].clause == 0);
+    // printM();
     if(cells[l].clause == a){
-        throw SAT();
+        return RETURN_SAT;
     }
-    a3();
+    return A3;
 }
 
-void AlgoA::a3(){
+AlgoA::NextStep AlgoA::a3(){
     //A3 - remove not l
-    int nl = l ^ 1;
-    int next = snext(nl);
-    bool allowed = true;
-    while(next >= varQtt * 2 + 2 && next != nl){
+    unsigned int nl = l ^ 1;
+    unsigned int next = snext(nl);
+    bool allowed = next >= varQtt * 2 + 2 ? true : false;
+    while(allowed && next != nl){
         int active = 0;
         int clause = cells[next].clause;
         int start = cells.size() - CLAUSE_SIZE * clause;
@@ -106,61 +108,61 @@ void AlgoA::a3(){
         }
         if(active <= 1){
             allowed = false;
-            break;
         }
         next = snext(next);
     }
     if(allowed) {
         activeLiterals[nl] = false;
         cells[nl].clause = 0;
-        a4();
+        return A4;
     } else {
-        a5();
+        return A5;
     }
 }
 
-void AlgoA::a4(){
+AlgoA::NextStep AlgoA::a4(){
     //A4 - deactivate l's clauses
-    int pl = l;
-    int next = snext(pl);
+    unsigned int pl = l;
+    unsigned int next = snext(pl);
     while(next >= varQtt * 2 + 2 && next != pl){
         activeClauses[cells[next].clause - 1] = false;
         a--;
         int clause = cells[next].clause;
-        for(int j = (cells.size() - 3 * clause); j < (cells.size() + CLAUSE_SIZE - CLAUSE_SIZE * clause); j++){
+        for(unsigned int j = (cells.size() - 3 * clause); j < (cells.size() + CLAUSE_SIZE - CLAUSE_SIZE * clause); j++){
             if(cells[cells[j].literal].clause > 0)
                 cells[cells[j].literal].clause--;
         }
         next = snext(next);
     }
     d++;
-    a2();
+    return A2;
 }
 
-void AlgoA::a5(){
+AlgoA::NextStep AlgoA::a5(){
     //A5 - try again
     if(m[d-1] < 2){
         m[d-1] = 3 - m[d-1];
+        // printM();
         l = 2 * d + (m[d-1] & 1);
-        a3();
+        return A3;
     }
-    a6();
+    return A6;
 }
 
-void AlgoA::a6(){
+AlgoA::NextStep AlgoA::a6(){
     //A6 - backtrack
     if(d == 1){
-        throw UNSAT();
+        return RETURN_UNSAT;
     } else {
         d--;
         l = 2 * d + (m[d-1] & 1);
-        a7();
+        return A7;
     }
 }
 
-void AlgoA::a7(){
+AlgoA::NextStep AlgoA::a7(){
     //A7 - reactivate l's clauses
-    int next = cells[l].next;
+    unsigned int next = cells[l].next;
     while(next != l){
         activeClauses[cells[next].clause - 1] = true;
         a++;
@@ -173,10 +175,10 @@ void AlgoA::a7(){
         }
         next = cells[next].next;
     }
-    a8();
+    return A8;
 }
 
-void AlgoA::a8(){
+AlgoA::NextStep AlgoA::a8(){
     //A8 - unremove not l
     int nl = l ^ 1;
     int next = cells[nl].next;
@@ -187,7 +189,7 @@ void AlgoA::a8(){
         }
         next = cells[next].next;
     }
-    a5();
+    return A5;
 }
 
 SatModel parseString(unsigned int varsQtt, std::string vs, std::string ss){
@@ -237,7 +239,7 @@ void SatModel::print() const {
     };
 
     std::stringstream ss;
-    for(int i = 0; i < getClauses().size(); i++){
+    for(unsigned int i = 0; i < getClauses().size(); i++){
         std::vector<std::pair<unsigned int, bool>> vars = getClauses().at(i).getVars();
         ss << (vars.at(0).second ? "  " : " -") << vars.at(0).first;
         ss << (vars.at(1).second ? "  " : " -") << vars.at(1).first;
@@ -251,7 +253,7 @@ void SatModel::print() const {
     std::string f;
     std::string b;
     std::string c;
-    for(int i = 0; i < cells.size(); i++){
+    for(unsigned int i = 0; i < cells.size(); i++){
         j.append(toString(i));
         l.append(toString(cells[i].literal));
         f.append(toString(cells[i].prev));

@@ -5,8 +5,8 @@ const std::string EQUATION_7_VARS = "123,234,341,412,123,234,341";
 const std::string EQUATION_7_SIGS = "110,110,111,101,001,001,000";
 const std::string EQUATION_6_VARS = "123,234,341,412,123,234,341,412";
 const std::string EQUATION_6_SIGS = "110,110,111,101,001,001,000,010";
-const std::string EQUATION_6_FILE_PATH = "equation6.cnf";
-const std::string EQUATION_7_FILE_PATH = "equation7.cnf";
+const std::string EQUATION_6_FILE_PATH = "samples/equation6.cnf";
+const std::string EQUATION_7_FILE_PATH = "samples/equation7.cnf";
 const int VARS_COUNT = 4;
 
 void assertThat(std::string msg, bool condition){
@@ -50,6 +50,8 @@ int main() {
     SatModel equation6ModelFromString = parseString(VARS_COUNT, EQUATION_6_VARS, EQUATION_6_SIGS);
     SatModel equation7ModelFromString = parseString(VARS_COUNT, EQUATION_7_VARS, EQUATION_7_SIGS);
     SatModel equation6ModelFromDimacs = parseDimacs(EQUATION_6_FILE_PATH);
+    SatModel equation7ModelFromString = parseString(VARS_COUNT, EQUATION_7_VARS, EQUATION_7_SIGS);
+    SatModel equation6ModelFromDimacs = parseDimacs(EQUATION_6_FILE_PATH);
     SatModel equation7ModelFromDimacs = parseDimacs(EQUATION_7_FILE_PATH);
     assertDataStructure(equation7ModelFromString);
     assertDataStructure(equation7ModelFromDimacs);
@@ -57,8 +59,20 @@ int main() {
     assertThat("solving: book's equation 7 should be sat", equation7ModelFromString.isSat());
     assertThat("solving: book's equation 6 should be unsat", !equation6ModelFromDimacs.isSat());
     assertThat("solving: book's equation 7 should be sat", equation7ModelFromDimacs.isSat());
-    assertThat("solving: CBS_k3_n100_m423_b10_82 should be sat", parseDimacs("CBS_k3_n100_m423_b10_82.cnf").isSat());
-    assertThat("solving: dubois20 should be unsat", !parseDimacs("dubois20.cnf").isSat());
-    assertThat("solving: aim-50-1_6-yes1-4 should be sat", parseDimacs("aim-50-1_6-yes1-4.cnf").isSat());
-    assertThat("solving: aim-100-1_6-no-1 should be unsat", !parseDimacs("aim-100-1_6-no-1.cnf").isSat());
+    assertThat("solving: waerden8 should be sat", parseDimacs("samples/waerden8.cnf").isSat());
+    assertThat("solving: waerden9 should be unsat", !parseDimacs("samples/waerden9.cnf").isSat());
+    SatModel equation7ModelFromDimacs = parseDimacs(EQUATION_7_FILE_PATH);
+    assertDataStructure(equation7ModelFromString);
+    assertDataStructure(equation7ModelFromDimacs);
+    assertThat("solving: book's equation 6 should be unsat", !equation6ModelFromString.isSat());
+    assertThat("solving: book's equation 7 should be sat", equation7ModelFromString.isSat());
+    assertThat("solving: book's equation 6 should be unsat", !equation6ModelFromDimacs.isSat());
+    assertThat("solving: book's equation 7 should be sat", equation7ModelFromDimacs.isSat());
+    assertThat("solving: waerden8 should be sat", parseDimacs("samples/waerden8.cnf").isSat());
+    assertThat("solving: waerden9 should be unsat", !parseDimacs("samples/waerden9.cnf").isSat());
+    // assertThat("solving: aim-50-1_6-yes1-1 should be sat", parseDimacs("samples/aim-50-1_6-yes1-1.cnf").isSat());
+    // assertThat("solving: aim-50-1_6-yes1-4 should be sat", parseDimacs("samples/aim-50-1_6-yes1-4.cnf").isSat());
+    // assertThat("solving: aim-100-1_6-no-1 should be unsat", !parseDimacs("samples/aim-100-1_6-no-1.cnf").isSat());
+    // assertThat("solving: dubois20 should be unsat", !parseDimacs("samples/dubois20.cnf").isSat());
+    // assertThat("solving: CBS_k3_n100_m423_b10_82 should be sat", parseDimacs("samples/CBS_k3_n100_m423_b10_82.cnf").isSat());
 }

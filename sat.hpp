@@ -37,31 +37,77 @@ class Cell {
 
 class AlgoA {
 
-    class UNSAT : public std::exception {
-    };
+    public:
+        AlgoA(std::vector<Clause> cs, std::vector<Cell> csls, int qtt) :
+            activeClauses(cs.size()), activeLiterals(qtt * 2 + 2), cells(csls), varQtt(qtt) {}
 
-    class SAT : public std::exception {
-    };
+        bool run(){
+            NextStep nextStep = A1;
+            while(true) {
+                switch (nextStep) {
+                    case A1: nextStep = a1(); break;
+                    case A2: nextStep = a2(); break;
+                    case A3: nextStep = a3(); break;
+                    case A4: nextStep = a4(); break;
+                    case A5: nextStep = a5(); break;
+                    case A6: nextStep = a6(); break;
+                    case A7: nextStep = a7(); break;
+                    case A8: nextStep = a8(); break;
+                    case RETURN_SAT: return true;
+                    case RETURN_UNSAT: return false;
+                }
+            }
+            return false;
+        }
 
     private:
+
+        enum NextStep {
+            A1,
+            A2,
+            A3,
+            A4,
+            A5,
+            A6,
+            A7,
+            A8,
+            RETURN_SAT,
+            RETURN_UNSAT
+        };
+
         std::vector<bool> activeClauses;
         std::vector<bool> activeLiterals;
         std::vector<Cell> cells;
-        int a;
-        int d;
-        int l;
+        unsigned int a;
+        unsigned int d;
+        unsigned int l;
         std::vector<int> m;
-        int varQtt;
+        unsigned int varQtt;
+
+        NextStep a1();
+        NextStep a2();
+        NextStep a3();
+        NextStep a4();
+        NextStep a5();
+        NextStep a6();
+        NextStep a7();
+        NextStep a8();
+
+        void printM(){
+            for (int i: m)
+                std::cout << i;
+            std::cout << std::endl;
+        }
 
         bool isClauseActive(int i) const {
-            return activeClauses[cells.at(i).clause - 1];
+            return activeClauses.at(cells.at(i).clause - 1);
         };
 
         bool isLiteralActive(int i) const {
             return activeLiterals.at(cells.at(i).literal);
         };
 
-        int snext(int i) const {
+        int snext(unsigned int i) const {
             if(cells[i].next < (varQtt * 2 + 2) || (isClauseActive(cells.at(i).next) && (i < (varQtt * 2 + 2) || isLiteralActive(i)))){
                 return cells.at(i).next;
             } else {
@@ -69,35 +115,12 @@ class AlgoA {
             }
         }
 
-        int sprev(int i) const {
+        int sprev(unsigned int i) const {
             if(cells.at(i).prev < (varQtt * 2 + 2) || (isClauseActive(cells.at(i).prev) && (i < (varQtt * 2 + 2) || isLiteralActive(i)))){
                 return cells.at(i).prev;
             } else {
                 return sprev(cells.at(i).prev);
             }
-        }
-
-        void a1();
-        void a2();
-        void a3();
-        void a4();
-        void a5();
-        void a6();
-        void a7();
-        void a8();
-
-    public:
-        AlgoA(std::vector<Clause> cs, std::vector<Cell> csls, int qtt) :
-            a(cs.size()), activeLiterals(qtt * 2 + 2), cells(csls), varQtt(qtt) {}
-        bool run(){
-            try {
-                a1();
-            } catch(const SAT& e) {
-                return true;
-            } catch(const UNSAT& e) {
-                return false;
-            }
-            return false;
         }
 };
 
